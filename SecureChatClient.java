@@ -1,4 +1,3 @@
-import java.util.*;
 import java.io.*;
 import java.math.BigInteger;
 import java.net.*;
@@ -55,8 +54,7 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
 		BigInteger key = new BigInteger(1,cypher.getKey());
 		System.out.println("Key Sent: " + key);
 		myWriter.writeObject(key.modPow(E, N));myWriter.flush();
-		myWriter.writeObject(cypher.encode(myName));myWriter.flush();
-        
+		myWriter.writeObject(cypher.encode(myName));myWriter.flush();        
 		// Send name to Server.  Server will need
                                     // this to announce sign-on and sign-off
                                     // of clients

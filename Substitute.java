@@ -13,7 +13,6 @@ public class Substitute implements SymCipher {
 			byte b = temp.remove((int) (Math.random()*(temp.size()-2)));
 			key[i]=b;
 			decode[b & 0xFF]=(byte)i;
-			//System.out.println((b&0xFF) +" " + decode[b & 0xFF] );
 		}
 			
 	}
