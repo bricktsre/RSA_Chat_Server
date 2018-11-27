@@ -1,5 +1,6 @@
 import java.util.*;
 import java.io.*;
+import java.math.BigInteger;
 import java.net.*;
 import javax.swing.*;
 import java.awt.event.*;
@@ -21,13 +22,14 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
 
     public static final int PORT = 8765;
 
-    BufferedReader myReader;
-    PrintWriter myWriter;
+    ObjectInputStream myReader;
+    ObjectOutputStream myWriter;
     JTextArea outputArea;
     JLabel prompt;
     JTextField inputField;
     String myName, serverName;
 	Socket connection;
+	SymCipher cypher;
 
     public SecureChatClient ()
     {
@@ -39,17 +41,23 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
                 InetAddress.getByName(serverName);
         connection = new Socket(addr, PORT);   // Connect to server with new
                                                // Socket
-        myReader =
-             new BufferedReader(
-                 new InputStreamReader(
-                     connection.getInputStream()));   // Get Reader and Writer
-
-        myWriter =
-             new PrintWriter(
-                 new BufferedWriter(
-                     new OutputStreamWriter(connection.getOutputStream())), true);
-
-        myWriter.println(myName);   // Send name to Server.  Server will need
+        myWriter =	new ObjectOutputStream(connection.getOutputStream());
+		myWriter.flush();
+		myReader = new ObjectInputStream(connection.getInputStream());
+		BigInteger E = (BigInteger) myReader.readObject();
+		System.out.println("E recieved: " + E);
+		BigInteger N = (BigInteger) myReader.readObject();
+		System.out.println("N recieved: " + N);
+		String cyphertype = (String) myReader.readObject();
+		System.out.println("Cypher type: " + cyphertype);
+		if(cyphertype.equals("Add")) cypher = new Add128();
+		else cypher = new Substitute();
+		BigInteger key = new BigInteger(1,cypher.getKey());
+		System.out.println("Key Sent: " + key);
+		myWriter.writeObject(key.modPow(E, N));myWriter.flush();
+		myWriter.writeObject(cypher.encode(myName));myWriter.flush();
+        
+		// Send name to Server.  Server will need
                                     // this to announce sign-on and sign-off
                                     // of clients
 
@@ -79,7 +87,11 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
                 new WindowAdapter()
                 {
                     public void windowClosing(WindowEvent e)
-                    { myWriter.println("CLIENT CLOSING");
+                    { try {
+						myWriter.writeObject(cypher.encode("CLIENT CLOSING"));myWriter.flush();
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
                       System.exit(0);
                      }
                 }
@@ -100,7 +112,7 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
         while (true)
         {
              try {
-                String currMsg = myReader.readLine();
+                String currMsg = cypher.decode((byte [])myReader.readObject());
 			    outputArea.append(currMsg+"\n");
              }
              catch (Exception e)
@@ -116,7 +128,11 @@ public class SecureChatClient extends JFrame implements Runnable, ActionListener
     {
         String currMsg = e.getActionCommand();      // Get input value
         inputField.setText("");
-        myWriter.println(myName + ":" + currMsg);   // Add name and send it
+        try {
+			myWriter.writeObject(cypher.encode(myName + ":" + currMsg));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}   // Add name and send it
     }                                               // to Server
 
     public static void main(String [] args)
